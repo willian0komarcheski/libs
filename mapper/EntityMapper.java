@@ -25,8 +25,10 @@ public class EntityMapper<T> {
         for (Field field : clazz.getDeclaredFields()) {
             ColumnName column = field.getAnnotation(ColumnName.class);
             if (column != null) {
-                field.setAccessible(true);
-                map.put(column.name(), field);
+                if(column.foreignKey() == false && column.primaryKey() == false) {
+                    field.setAccessible(true);
+                    map.put(column.name(), field);
+                }
             }
         }
         return map;
@@ -68,6 +70,11 @@ public class EntityMapper<T> {
     public String generateSelectQuery() {
         String table = getTableName();
         return String.format("SELECT * FROM %s WHERE id = ?", table);
+    }
+
+    public String generateSelectAllQuery() {
+        String table = getTableName();
+        return String.format("SELECT * FROM %s;", table);
     }
     
     public String generateUpdateQuery(T entity) {

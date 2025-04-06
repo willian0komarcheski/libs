@@ -7,11 +7,13 @@ import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public abstract class AbstractRepository<T> {
     protected Connection connection;
-    protected EntityMapper<T> mapper;
+    protected EntityMapper<T> entityMapper;
 
     @SuppressWarnings("unchecked")
     public AbstractRepository() {
@@ -21,14 +23,14 @@ public abstract class AbstractRepository<T> {
                 .getGenericSuperclass())
                 .getActualTypeArguments()[0];
 
-        this.mapper = new EntityMapper<>(entityClass);
+        this.entityMapper = new EntityMapper<>(entityClass);
     }
 
     public void create(T entity) {
         try {
-            String query = mapper.generateInsertQuery(entity);
+            String query = entityMapper.generateInsertQuery(entity);
             PreparedStatement ps = connection.prepareStatement(query);
-            Map<String, Object> columns = mapper.getColumnsAndValues(entity);
+            Map<String, Object> columns = entityMapper.getColumnsAndValues(entity);
             int index = 1;
             for (Object value : columns.values()) {
                 ps.setObject(index++, value);
@@ -41,12 +43,12 @@ public abstract class AbstractRepository<T> {
 
     public T read(Object id) {
         try {
-            String query = mapper.generateSelectQuery();
+            String query = entityMapper.generateSelectQuery();
             PreparedStatement ps = connection.prepareStatement(query);
             ps.setObject(1, id);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
-                return mapper.mapResultSetToEntity(rs);
+                return entityMapper.mapResultSetToEntity(rs);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -56,9 +58,9 @@ public abstract class AbstractRepository<T> {
 
     public void update(T entity) {
         try {
-            String query = mapper.generateUpdateQuery(entity);
+            String query = entityMapper.generateUpdateQuery(entity);
             PreparedStatement ps = connection.prepareStatement(query);
-            Map<String, Object> columns = mapper.getColumnsAndValues(entity);
+            Map<String, Object> columns = entityMapper.getColumnsAndValues(entity);
             int index = 1;
             for (String column : columns.keySet()) {
                 if (!column.equals("id")) {
@@ -74,12 +76,28 @@ public abstract class AbstractRepository<T> {
 
     public void delete(Object id) {
         try {
-            String query = mapper.generateDeleteQuery();
+            String query = entityMapper.generateDeleteQuery();
             PreparedStatement ps = connection.prepareStatement(query);
             ps.setObject(1, id);
             ps.executeUpdate();
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public List<T> getAll() {
+        String query = entityMapper.generateSelectAllQuery();
+        List<T> users = new ArrayList<>();
+
+        try (PreparedStatement ps = connection.prepareStatement(query)) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                T obj = entityMapper.mapResultSetToEntity(rs);
+                users.add(obj);
+            }
+        } catch(Exception ex) {
+            System.err.println("erro ao requisitar dados");
+        }
+        return users;
     }
 }
